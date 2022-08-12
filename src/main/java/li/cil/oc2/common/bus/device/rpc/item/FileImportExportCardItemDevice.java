@@ -7,6 +7,7 @@ import li.cil.oc2.api.bus.device.object.Callback;
 import li.cil.oc2.api.bus.device.object.DocumentedDevice;
 import li.cil.oc2.api.bus.device.object.Parameter;
 import li.cil.oc2.api.capabilities.TerminalUserProvider;
+import li.cil.oc2.common.Constants;
 import li.cil.oc2.common.network.Network;
 import li.cil.oc2.common.network.message.ExportedFileMessage;
 import li.cil.oc2.common.network.message.RequestImportedFileMessage;
@@ -27,7 +28,7 @@ import java.util.Set;
 import java.util.WeakHashMap;
 
 public final class FileImportExportCardItemDevice extends AbstractItemRPCDevice implements DocumentedDevice {
-    public static final int MAX_TRANSFERRED_FILE_SIZE = 512 * 1024;
+    public static final int MAX_TRANSFERRED_FILE_SIZE = 512 * Constants.KILOBYTE;
 
     private static final String BEGIN_EXPORT_FILE = "beginExportFile";
     private static final String WRITE_EXPORT_FILE = "writeExportFile";
@@ -224,6 +225,11 @@ public final class FileImportExportCardItemDevice extends AbstractItemRPCDevice 
     @Nullable
     @Callback(name = BEGIN_IMPORT_FILE)
     public ImportedFileInfo beginImportFile() {
+        if (state == State.IMPORT_CANCELED) {
+            reset();
+            throw new IllegalStateException("import was canceled");
+        }
+
         if (state != State.IMPORT_REQUESTED) {
             throw new IllegalStateException("invalid state");
         }
@@ -252,7 +258,7 @@ public final class FileImportExportCardItemDevice extends AbstractItemRPCDevice 
             return new byte[0];
         }
 
-        final byte[] buffer = new byte[1024];
+        final byte[] buffer = new byte[512];
         final int count = importedFile.data.read(buffer);
         if (count <= 0) {
             reset();
